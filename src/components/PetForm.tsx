@@ -2,19 +2,22 @@
 
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { PatternFormat } from 'react-number-format'
 import Button from './Button'
 import Spinner from './Spinner'
 import { createPet } from '@/lib/api'
 import { scrollIntoCenter } from '@/lib/focus'
-import type { PetFormValues } from '@/types'
+import { petFormSchema } from '@/schemas/pet-form-schema'
 
 const DEFAULT_PHONE = '93991185009'
 
 type SubmitStatus = 'inicio' | 'load'
 type SubmitMessage = '' | 'ok' | 'erro'
+type PetFormValues = z.input<typeof petFormSchema>
 
-const INITIAL_VALUES: PetFormValues = {
+const EMPTY_VALUES: PetFormValues = {
   nome: '',
   especie: '',
   porte: '',
@@ -22,12 +25,45 @@ const INITIAL_VALUES: PetFormValues = {
   descricao: '',
   contato: DEFAULT_PHONE,
   adotado: false,
+  vacinado: false,
+  vermifugado: false,
+  castrado: false,
+}
+
+// Subcomponente para eliminar a repetição dos três <select> com estrutura idêntica.
+function SelectField({
+  label,
+  options,
+  error,
+  ...registerProps
+}: {
+  label: string
+  options: { value: string; label: string }[]
+  error?: string
+  name: keyof PetFormValues
+  onChange: React.ChangeEventHandler
+  onBlur: React.FocusEventHandler
+  ref: React.Ref<HTMLSelectElement>
+}) {
+  return (
+    <>
+      <label className="formlabel">{label}</label>
+      <select className="input" {...registerProps}>
+        <option value="">Selecione</option>
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      {error && <p className="formerro">{error}</p>}
+    </>
+  )
 }
 
 export default function PetForm() {
   const photoFile = useRef<File | null>(null)
   const photoInput = useRef<HTMLInputElement>(null)
-
   const [photoError, setPhotoError] = useState<'' | 'erro'>('')
   const [fileName, setFileName] = useState('')
   const [message, setMessage] = useState<SubmitMessage>('')
@@ -38,8 +74,12 @@ export default function PetForm() {
     control,
     handleSubmit,
     formState: { errors },
-    reset,
-  } = useForm<PetFormValues>({ mode: 'all', defaultValues: INITIAL_VALUES })
+    resetField,
+  } = useForm<PetFormValues>({
+    resolver: zodResolver(petFormSchema),
+    mode: 'all',
+    defaultValues: EMPTY_VALUES,
+  })
 
   function isPhotoValid(): boolean {
     if (!photoFile.current) {
@@ -48,6 +88,13 @@ export default function PetForm() {
     }
     setPhotoError('')
     return true
+  }
+
+  function resetPhoto() {
+    if (photoInput.current) photoInput.current.value = ''
+    photoFile.current = null
+    setFileName('')
+    setPhotoError('')
   }
 
   async function submit(values: PetFormValues) {
@@ -63,16 +110,21 @@ export default function PetForm() {
     formData.append('sexo', values.sexo)
     formData.append('descricao', values.descricao)
     formData.append('adotado', values.adotado ? 'true' : 'false')
+    formData.append('vacinado', values.vacinado ? 'true' : 'false')
+    formData.append('vermifugado', values.vermifugado ? 'true' : 'false')
+    formData.append('castrado', values.castrado ? 'true' : 'false')
     if (photoFile.current) formData.append('file', photoFile.current)
     formData.append('contato', values.contato)
 
     try {
       await createPet(formData)
-      reset(INITIAL_VALUES)
-      if (photoInput.current) photoInput.current.value = ''
-      photoFile.current = null
-      setFileName('')
-      setPhotoError('')
+      resetField('nome', { defaultValue: '' })
+      resetField('especie', { defaultValue: '' })
+      resetField('porte', { defaultValue: '' })
+      resetField('sexo', { defaultValue: '' })
+      resetField('descricao', { defaultValue: '' })
+      resetField('contato', { defaultValue: values.contato })
+      resetPhoto()
       setStatus('inicio')
       setMessage('ok')
     } catch (error) {
@@ -98,8 +150,8 @@ export default function PetForm() {
       >
         <fieldset disabled={status !== 'inicio'} className="flex flex-col">
           <label className="formlabel"> Nome do animal:</label>
-          <input className="input" {...register('nome', { required: true })} type="text" placeholder="Nome do animal." onFocus={scrollIntoCenter} />
-          {errors.nome && <p className="formerro">Campo obrigatório</p>}
+          <input className="input" {...register('nome')} type="text" placeholder="Nome do animal." onFocus={scrollIntoCenter} />
+          {errors.nome && <p className="formerro">{errors.nome.message}</p>}
 
           <label className="formlabel"> Carregue uma imagem:</label>
 
@@ -111,40 +163,61 @@ export default function PetForm() {
 
           {photoError === 'erro' && <p className="formerro">Campo obrigatório</p>}
 
-          <label className="formlabel">Espécie</label>
-          <select className="input" {...register('especie', { required: true })}>
-            <option value="">Selecione</option>
-            <option value="cachorro">Cachorro</option>
-            <option value="gato">Gato</option>
-          </select>
-          {errors.especie && <p className="formerro">Campo obrigatório</p>}
+          <SelectField
+            label="Espécie"
+            options={[
+              { value: 'cachorro', label: 'Cachorro' },
+              { value: 'gato', label: 'Gato' },
+            ]}
+            error={errors.especie?.message}
+            {...register('especie')}
+          />
 
-          <label className="formlabel">Porte</label>
-          <select className="input" {...register('porte', { required: true })}>
-            <option value="">Selecione</option>
-            <option value="pequeno">Pequeno</option>
-            <option value="medio">Médio</option>
-            <option value="grande">Grande</option>
-          </select>
-          {errors.porte && <p className="formerro">Campo obrigatório</p>}
+          <SelectField
+            label="Porte"
+            options={[
+              { value: 'pequeno', label: 'Pequeno' },
+              { value: 'medio', label: 'Médio' },
+              { value: 'grande', label: 'Grande' },
+            ]}
+            error={errors.porte?.message}
+            {...register('porte')}
+          />
 
-          <label className="formlabel">Sexo</label>
-          <select className="input" {...register('sexo', { required: true })}>
-            <option value="">Selecione</option>
-            <option value="macho">Macho</option>
-            <option value="femea">Fêmea</option>
-          </select>
-          {errors.sexo && <p className="formerro">Campo obrigatório</p>}
+          <SelectField
+            label="Sexo"
+            options={[
+              { value: 'macho', label: 'Macho' },
+              { value: 'femea', label: 'Fêmea' },
+            ]}
+            error={errors.sexo?.message}
+            {...register('sexo')}
+          />
 
           <label className="formlabel"> Sobre:</label>
           <textarea
             className="textarea max-h-16"
-            {...register('descricao', { required: true })}
+            {...register('descricao')}
             rows={2}
             placeholder="Idade, castrado, deficiência e etc."
             onFocus={scrollIntoCenter}
           />
-          {errors.descricao && <p className="formerro">Campo obrigatório</p>}
+          {errors.descricao && <p className="formerro">{errors.descricao.message}</p>}
+
+          <div className="flex flex-col gap-2 my-4 text-(--text-color)">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" {...register('vacinado')} className="w-5 h-5 accent-(--bg-color)" />
+              <span className="text-[16px] font-bold">Vacinado</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" {...register('vermifugado')} className="w-5 h-5 accent-(--bg-color)" />
+              <span className="text-[16px] font-bold">Vermifugado</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" {...register('castrado')} className="w-5 h-5 accent-(--bg-color)" />
+              <span className="text-[16px] font-bold">Castrado</span>
+            </label>
+          </div>
 
           <div className="flex flex-col gap-2 my-4 text-(--text-color)">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -157,10 +230,6 @@ export default function PetForm() {
           <Controller
             name="contato"
             control={control}
-            rules={{
-              required: 'Campo obrigatório',
-              validate: (value) => value.replace(/\D/g, '').length === 11 || 'O número precisa ter 11 dígitos',
-            }}
             render={({ field: { ref, onChange, ...field } }) => (
               <PatternFormat
                 {...field}

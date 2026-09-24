@@ -101,7 +101,7 @@ export default function Item({ pet, admin, onDelete, onUpdate, onStart, onEnd }:
         setOpen={setZoom}
         title={`foto ${nome}`}
         content={
-          // eslint-disable-next-line @next/next/no-img-element -- remote user-uploaded photo, host not configured
+
           <img src={foto ?? undefined} alt={nome} className="w-full h-[calc(100vh-100px)] object-contain" />
         }
       />
@@ -130,7 +130,7 @@ export default function Item({ pet, admin, onDelete, onUpdate, onStart, onEnd }:
                 </button>
               )}
 
-              {/* eslint-disable-next-line @next/next/no-img-element -- remote photo or FileReader data URL preview */}
+            
               <img
                 src={photoPreview ?? foto ?? undefined}
                 alt={`um ${especie} ${sexo} ${porte}`}

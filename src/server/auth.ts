@@ -21,7 +21,7 @@ export function clearAuthCookie(response: NextResponse): void {
   response.cookies.set({ name: AUTH_COOKIE, value: '', maxAge: 0, ...cookieOptions() })
 }
 
-export function authenticate(request: NextRequest): { userId: string } | { error: NextResponse } {
+export function authenticate(request: NextRequest): { userId: string,token:string } | { error: NextResponse } {
   const cookieToken = request.cookies.get(AUTH_COOKIE)?.value
   const authHeader = request.headers.get('authorization')
 
@@ -32,7 +32,7 @@ export function authenticate(request: NextRequest): { userId: string } | { error
   const token = cookieToken || (authHeader ?? '').split(' ')[1] || ''
 
   try {
-    return { userId: verifyToken(token) }
+    return { userId: verifyToken(token) ,token}
   } catch {
     return { error: NextResponse.json({ error: 'Token inválido' }, { status: 401 }) }
   }

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { fields, file } = await readPetBody(request)
-    const { nome, especie, porte, sexo, descricao, tutelado, contato, adotado } = fields
+    const { nome, especie, porte, sexo, descricao, tutelado, contato, adotado, vacinado, vermifugado, castrado } = fields
 
     let fotoUrl: string | null = null
     let publicId: string | null = null
@@ -40,6 +40,9 @@ export async function POST(request: NextRequest) {
         sexo: sexo as string,
         descricao: descricao as string,
         contato: contato as string | undefined,
+        vacinado: vacinado === 'true' || vacinado === true,
+        vermifugado: vermifugado === 'true' || vermifugado === true,
+        castrado: castrado === 'true' || castrado === true,
         tutelado: tutelado === 'true' || tutelado === true,
         aprovado: true,
         adotado: adotado === 'true' || adotado === true,
