@@ -10,6 +10,8 @@ import Spinner from '@/components/Spinner'
 import { deletePet, listPets, updatePet } from '@/lib/api'
 import { EMPTY_FILTERS, filterPets } from '@/lib/filterPets'
 import type { Pet, PetFilters as PetFiltersValue, UpdateResult } from '@/types'
+import { useSession } from '@/hooks/useSession'
+import { redirect } from 'next/navigation'
 
 interface DeleteTarget {
   id: Pet['id']
@@ -17,14 +19,24 @@ interface DeleteTarget {
 }
 
 export default function GerenciarPage() {
-  const queryClient = useQueryClient()
+  const isValidSession = useSession()
 
+  if(isValidSession === false){
+    redirect('/painel')
+  }
+  const queryClient = useQueryClient()
+ 
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [saving, setSaving] = useState(false)
   const [filters, setFilters] = useState<PetFiltersValue>(EMPTY_FILTERS)
 
-  const { data } = useQuery({ queryKey: ['itens'], queryFn: listPets })
+  const { data } = useQuery({
+      queryKey: ['itens'],
+      queryFn: listPets,
+      enabled:isValidSession===true
+
+   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, formData }: { id: Pet['id']; formData: FormData }) => updatePet(id, formData),
@@ -54,7 +66,6 @@ export default function GerenciarPage() {
   }
 
   const filteredPets = filterPets(Array.isArray(data) ? data : [], filters)
-
   return (
     <div className="flex flex-col justify-start items-center">
       <a
